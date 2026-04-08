@@ -1,0 +1,38 @@
+{
+  "name": "@chapeaux/cpx-store",
+  "version": "0.1.0",
+  "description": "Chapeaux Reactive Store Component",
+  "type": "module",
+  "main": "cpx-store.js",
+  "module": "cpx-store.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chapeaux/cpx-store.git"
+  },
+  "keywords": [
+    "web",
+    "component",
+    "typescript",
+    "deno"
+  ],
+  "author": "Luke Dary <ldary@redhat.com> (https://lukedary.com)",
+  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://github.com/chapeaux/cpx-store/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/chapeaux/cpx-store",
+  "dependencies": {
+    "@esm-bundle/chai": "^4.3.4-fix.0",
+    "@types/mocha": "^10.0.10",
+    "@web/dev-server-esbuild": "^1.0.5",
+    "@web/dev-server-import-maps": "^0.2.1"
+  }
+}

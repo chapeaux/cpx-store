@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Unified Native Platform (2026)</title>
+  <!-- <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script> -->
+  
+  <style>
+    :root { --primary: #6366f1; --bg: #ffffff; --text: #1f2937; transition: 0.3s; }
+    body.dark { --bg: #111827; --text: #f9fafb; }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; line-height: 1.5; padding: 2rem; max-width: 800px; margin: auto; }
+    section { border: 1px solid #e5e7eb; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }
+    .tag { font-size: 0.75rem; font-weight: bold; text-transform: uppercase; color: var(--primary); margin-bottom: 0.5rem; display: block; }
+    button { cursor: pointer; padding: 0.5rem 1rem; border-radius: 4px; border: 1px solid var(--primary); background: transparent; color: inherit; font-weight: bold; }
+    button:hover { background: var(--primary); color: white; }
+    .spacer { height: 50vh; border-left: 2px dashed #ccc; margin: 20px; }
+  </style>
+</head>
+<body>
+
+  <app-store id="GlobalStore"></app-store>
+  <scheme-store></scheme-store>
+  <header>
+    <h1>The Unified Store</h1>
+    <p>This page demonstrates <strong>Reactive State</strong> shared across different technologies.</p>
+  </header>
+
+  <section>
+    <span class="tag">Write-Only Web Component</span>
+    <p>This button has 0 imports. It just "shouts" into the DOM.</p>
+    <action-button action-type="increment" store="app-store" label="Add +1 to Global Count"></action-button>
+    <action-button action-type="setScheme" store="theme-store" value="dark" label="Switch Dark"></action-button>
+    <action-button action-type="setScheme" store="theme-store" value="light" label="Switch Light"></action-button>
+  </section>
+  
+  <section id="legacy-ui">
+    <span class="tag">Legacy JavaScript (Plain Script)</span>
+    <p>Current Count: <strong id="legacy-count">0</strong></p>
+  </section>
+
+  <!-- <section id="react-root">
+    <span class="tag">React 18 Component</span>
+    </section> -->
+  
+  <div class="spacer">Wait for it... Scroll down for Selective Hydration</div>
+
+  <section>
+    <span class="tag">Lazy Web Component</span>
+    <lazy-display></lazy-display>
+  </section>
+
+  <script type="module" src="store.js"></script>
+  <script type="module" src="components.js"></script>
+
+  <script>
+    // LEGACY SCRIPT
+    async function initLegacy() {
+      await customElements.whenDefined('app-store');
+      const store = document.querySelector('app-store');
+      const countEl = document.getElementById('legacy-count');
+      
+      const sync = () => countEl.textContent = store.state.count;
+      store.addEventListener('change', sync);
+      sync();
+    }
+    initLegacy();
+  </script>
+
+  <!-- <script type="text/babel">
+    // REACT COMPONENT
+    const ReactApp = () => {
+      const [data, setData] = React.useState({ count: 0 });
+
+      React.useEffect(() => {
+        const store = document.querySelector('app-store');
+        if (!store) return;
+
+        const handleUpdate = () => setData({ ...store.state });
+        store.addEventListener('change', handleUpdate);
+        handleUpdate(); // Initial sync
+
+        return () => store.removeEventListener('change', handleUpdate);
+      }, []);
+
+      return (
+        <div style={{color: 'var(--primary)'}}>
+          <p>React State: <strong>{data.count}</strong></p>
+          <button onClick={() => document.querySelector('app-store').state.count++}>
+            Increment from React
+          </button>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('react-root'));
+    root.render(<ReactApp />);
+  </script> -->
+</body>
+</html>

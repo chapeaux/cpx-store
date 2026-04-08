@@ -1,0 +1,28 @@
+{
+    "name": "@chapeaux/cpx-store",
+    "version": "0.1.0",
+    "exports": "./src/cpx-store.ts",
+    "tasks": {
+        "build": "deno run -A tasks/build.js",
+        "build:watch": "deno task build --watch",
+        "doc": "deno run -A tasks/docs.js",
+        "format": "deno fmt",
+        "serve": "deno run -A tasks/serve.js",
+        "serve:https": "deno run -A tasks/serve.js https",
+        "test:logic": "deno test --allow-read src/stores/",
+        "test:browser": "deno run -A npm:@web/test-runner --config web-test-runner.config.mjs",
+        "test:watch": "deno task test:browser --watch"
+    },
+    "imports": {
+        "@std/assert": "jsr:@std/assert@^1.0.19",
+        "linkedom": "npm:linkedom",
+        "@web/test-runner": "npm:@web/test-runner",
+        "@web/test-runner-playwright": "npm:@web/test-runner-playwright",
+        "@esm-bundle/chai": "npm:@esm-bundle/chai"
+    },
+    "compilerOptions": {
+        "lib": ["deno.window", "dom"],
+        "types": ["npm:@types/mocha"]
+    },
+    "nodeModulesDir": "auto"
+}
