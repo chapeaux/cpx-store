@@ -1,6 +1,6 @@
 {
     "name": "@chapeaux/cpx-store",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "exports": "./src/cpx-store.ts",
     "tasks": {
         "build": "deno run -A tasks/build.js",
