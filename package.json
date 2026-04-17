@@ -1,6 +1,6 @@
 {
   "name": "@chapeaux/cpx-store",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Chapeaux Reactive Store Component",
   "type": "module",
   "main": "cpx-store.js",

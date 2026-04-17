@@ -1,7 +1,15 @@
 {
     "name": "@chapeaux/cpx-store",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "exports": "./src/cpx-store.ts",
+    "publish": {
+        "include": [
+            "src/",
+            "LICENSE",
+            "README.md",
+            "deno.json"
+        ]
+    },
     "tasks": {
         "build": "deno run -A tasks/build.js",
         "build:watch": "deno task build --watch",

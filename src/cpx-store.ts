@@ -7,6 +7,7 @@ export class CPXStore extends HTMLElement {
   _pointer: number;
   _isInternalChange: boolean;
   _isSyncing: boolean;
+  _storageHandler: ((e: StorageEvent) => void) | null;
   _middleware: Array<(prop: string | symbol, value: unknown, oldValue?: unknown) => void>;
   state!: Record<string | symbol, unknown>;
 
@@ -16,13 +17,22 @@ export class CPXStore extends HTMLElement {
     this._history = [JSON.stringify(initialState)];
     this._pointer = 0;
     this._isInternalChange = false;
-    this._isSyncing = false; // Prevents infinite loops during cross-tab sync
+    this._isSyncing = false;
+    this._storageHandler = null;
     this._middleware = middleware;
   }
 
   connectedCallback() {
     const storageKey = this.getAttribute('persist');
-    
+
+    // Restore persisted state before Proxy creation (no events fire)
+    if (storageKey) {
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) Object.assign(this._state, JSON.parse(saved));
+      } catch (_) { /* ignore parse errors or unavailable localStorage */ }
+    }
+
     this.state = new Proxy(this._state, {
       set: (target, prop, value) => {
         if (target[prop] === value) return true;
@@ -50,9 +60,36 @@ export class CPXStore extends HTMLElement {
         return true;
       }
     });
+
+    // Cross-tab sync: listen for storage changes from other tabs
+    if (storageKey) {
+      this._storageHandler = (e: StorageEvent) => {
+        if (e.key !== storageKey) return;
+        this._isSyncing = true;
+        const oldState = { ...this._state };
+        try {
+          Object.assign(this.state, JSON.parse(e.newValue!));
+        } catch (_) { /* ignore parse errors */ }
+        this._isSyncing = false;
+        this.onStorageChanged({ ...this._state }, oldState);
+      };
+      window.addEventListener('storage', this._storageHandler);
+    }
   }
 
-  _broadcast(prop, value, eventName='app-state-update') {
+  disconnectedCallback() {
+    if (this._storageHandler) {
+      window.removeEventListener('storage', this._storageHandler);
+      this._storageHandler = null;
+    }
+  }
+
+  onStorageChanged(_newState: Record<string, unknown>, _oldState: Record<string, unknown>) {
+    // Override in subclasses for side effects on cross-tab sync.
+    // Called after state has been applied from another tab.
+  }
+
+  _broadcast(prop: string | symbol, value: unknown, eventName='app-state-update') {
     // 4. BROADCAST (Telling the World)
     // Local DOM event for components
     this.dispatchEvent(new CustomEvent('change', { 

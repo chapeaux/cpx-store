@@ -31,37 +31,19 @@ customElements.define('scheme-store', SchemeStore);
 
 /**
  * THE APP STORE
- * Using Proxy for state, storage event for cross-tab, 
- * and CustomEvent for internal broadcasting.
+ * Cross-tab sync is handled by the base class — just add persist="key"
+ * in the HTML. Override onStorageChanged for side effects.
  */
 export class AppStore extends CPXStore {
   constructor() {
-    // 1. Define initial state and optional middleware
-    const initialState = { 
-      count: 0,  
-      user: { name: 'Guest', role: 'visitor' } 
-    };
-    
-    // Pass config to BaseStore: super(initialState, middlewareArray)
-    super(initialState, [
-      (prop, val) => console.log(`[Mutation] ${prop} set to:`, val)
-    ]);
-    
-    
-
-    // 4. Cross-tab synchronization
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'pda_demo') {
-        this._isSyncing = true; // Set flag to prevent save loop
-        const data = JSON.parse(e.newValue);
-        // Use Object.assign to update our Proxy state
-        Object.assign(this.state, data);
-        this._isSyncing = false; // Reset flag
-      }
-    });
+    super(
+      { count: 0, user: { name: 'Guest', role: 'visitor' } },
+      [(prop, val) => console.log(`[Mutation] ${prop} set to:`, val)]
+    );
   }
 
   connectedCallback() {
+    super.connectedCallback();
     window.addEventListener('app:action', (e) => {
       const { type, payload } = e.detail;
       if (type === 'increment') this.state.count++;
@@ -69,20 +51,21 @@ export class AppStore extends CPXStore {
     });
   }
 
+  onStorageChanged(newState, oldState) {
+    if (newState.theme !== oldState.theme) {
+      document.body.className = newState.theme;
+    }
+  }
+
   _broadcast(prop, value) {
-    // ONLY update the DOM if the theme property changed
-    if (prop === 'all') {
-      const newTheme = prop === 'all' ? value.theme : value;
-      // Final guard: only touch the DOM if the class is actually different
-      if (document.body.className !== newTheme) {
-        document.body.className = newTheme;
-      }
+    if (prop === 'theme' && document.body.className !== value) {
+      document.body.className = value;
     }
 
-    this.dispatchEvent(new CustomEvent('change', { 
-      detail: { prop, value }, 
-      bubbles: true, 
-      composed: true 
+    this.dispatchEvent(new CustomEvent('change', {
+      detail: { prop, value },
+      bubbles: true,
+      composed: true
     }));
   }
 }
