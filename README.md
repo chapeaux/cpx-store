@@ -20,12 +20,14 @@
 ## Installation
 
 ```bash
+# Using JSR (recommended)
+deno add jsr:@chapeaux/cpx-store
+
 # Using npm
 npm install @chapeaux/cpx-store
-
-# Using Deno
-deno add npm:@chapeaux/cpx-store
 ```
+
+> **[View on JSR](https://jsr.io/@chapeaux/cpx-store)** — CPX Store is published to the JavaScript Registry with full TypeScript source, no build step required.
 
 ## Quick Start
 
