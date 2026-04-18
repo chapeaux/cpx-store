@@ -1,6 +1,6 @@
 {
     "name": "@chapeaux/cpx-store",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "exports": "./src/cpx-store.ts",
     "publish": {
         "include": [
@@ -18,8 +18,8 @@
         "serve": "deno run -A tasks/serve.js",
         "serve:https": "deno run -A tasks/serve.js https",
         "test:logic": "deno test --allow-read src/stores/",
-        "test:browser": "deno run -A npm:@web/test-runner --config web-test-runner.config.mjs",
-        "test:watch": "deno task test:browser --watch"
+        "test:browser": "npx @web/test-runner --config web-test-runner.config.mjs",
+        "test:watch": "npx @web/test-runner --config web-test-runner.config.mjs --watch"
     },
     "imports": {
         "@std/assert": "jsr:@std/assert@^1.0.19",
