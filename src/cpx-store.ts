@@ -65,13 +65,9 @@ export class CPXStore extends HTMLElement {
     if (storageKey) {
       this._storageHandler = (e: StorageEvent) => {
         if (e.key !== storageKey) return;
-        this._isSyncing = true;
-        const oldState = { ...this._state };
         try {
-          Object.assign(this.state, JSON.parse(e.newValue!));
+          this.sync(JSON.parse(e.newValue!));
         } catch (_) { /* ignore parse errors */ }
-        this._isSyncing = false;
-        this.onStorageChanged({ ...this._state }, oldState);
       };
       window.addEventListener('storage', this._storageHandler);
     }
@@ -82,6 +78,14 @@ export class CPXStore extends HTMLElement {
       window.removeEventListener('storage', this._storageHandler);
       this._storageHandler = null;
     }
+  }
+
+  sync(state: Record<string, unknown>) {
+    this._isSyncing = true;
+    const oldState = { ...this._state };
+    Object.assign(this.state, state);
+    this._isSyncing = false;
+    this.onStorageChanged({ ...this._state }, oldState);
   }
 
   onStorageChanged(_newState: Record<string, unknown>, _oldState: Record<string, unknown>) {

@@ -43,14 +43,10 @@ export class CPXStore extends HTMLElement {
             this._storageHandler = (e) => {
                 if (e.key !== storageKey)
                     return;
-                this._isSyncing = true;
-                const oldState = { ...this._state };
                 try {
-                    Object.assign(this.state, JSON.parse(e.newValue));
+                    this.sync(JSON.parse(e.newValue));
                 }
                 catch (_) { /* ignore parse errors */ }
-                this._isSyncing = false;
-                this.onStorageChanged({ ...this._state }, oldState);
             };
             window.addEventListener('storage', this._storageHandler);
         }
@@ -60,6 +56,13 @@ export class CPXStore extends HTMLElement {
             window.removeEventListener('storage', this._storageHandler);
             this._storageHandler = null;
         }
+    }
+    sync(state) {
+        this._isSyncing = true;
+        const oldState = { ...this._state };
+        Object.assign(this.state, state);
+        this._isSyncing = false;
+        this.onStorageChanged({ ...this._state }, oldState);
     }
     onStorageChanged(_newState, _oldState) {
         // Override in subclasses for side effects on cross-tab sync.

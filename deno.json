@@ -1,6 +1,6 @@
 {
     "name": "@chapeaux/cpx-store",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "exports": "./src/cpx-store.ts",
     "publish": {
         "include": [

@@ -270,3 +270,58 @@ describe("CPXStore: Persistence & Cross-Tab Sync", () => {
     store.remove();
   });
 });
+
+describe("CPXStore: sync() method", () => {
+
+  afterEach(() => localStorage.clear());
+
+  it("should apply state and call onStorageChanged", () => {
+    const store = document.createElement("callback-test-store") as CallbackTestStore;
+    document.body.appendChild(store);
+
+    store.state.count = 10;
+
+    store.sync({ count: 77, theme: 'ocean' });
+
+    expect(store.state.count).to.equal(77);
+    expect(store.state.theme).to.equal('ocean');
+    expect(store.callbackCount).to.equal(1);
+    expect(store.lastNewState!.count).to.equal(77);
+    expect(store.lastOldState!.count).to.equal(10);
+
+    store.remove();
+  });
+
+  it("should not write back to localStorage during sync", () => {
+    const store = document.createElement("persist-test-store") as PersistTestStore;
+    store.setAttribute('persist', 'sync-test');
+    document.body.appendChild(store);
+
+    store.state.count = 5;
+    expect(JSON.parse(localStorage.getItem('sync-test')!).count).to.equal(5);
+
+    store.sync({ count: 200, theme: 'dark' });
+
+    expect(store.state.count).to.equal(200);
+    expect(JSON.parse(localStorage.getItem('sync-test')!).count).to.equal(5);
+
+    store.remove();
+  });
+
+  it("should dispatch change events", () => {
+    const store = document.createElement("persist-test-store") as PersistTestStore;
+    document.body.appendChild(store);
+
+    const changes: string[] = [];
+    store.addEventListener("change", (e: any) => {
+      changes.push(e.detail.prop);
+    });
+
+    store.sync({ count: 42, theme: 'sunset' });
+
+    expect(changes).to.include('count');
+    expect(changes).to.include('theme');
+
+    store.remove();
+  });
+});
