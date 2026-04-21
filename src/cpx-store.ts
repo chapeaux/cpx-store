@@ -3,23 +3,31 @@
  */
 export class CPXStore extends HTMLElement {
   _state: Record<string | symbol, unknown>;
-  _history: string[];
+  _history: Array<{ prop: string | symbol; old: unknown; val: unknown }>;
   _pointer: number;
+  _maxHistory: number;
   _isInternalChange: boolean;
   _isSyncing: boolean;
   _storageHandler: ((e: StorageEvent) => void) | null;
   _middleware: Array<(prop: string | symbol, value: unknown, oldValue?: unknown) => void>;
+  _computed: Map<string, { deps: string[]; fn: () => unknown; cache: unknown; dirty: boolean }>;
   state!: Record<string | symbol, unknown>;
 
-  constructor(initialState = {}, middleware: Array<(prop: string | symbol, value: unknown, oldValue?: unknown) => void> = []) {
+  constructor(
+    initialState = {},
+    middleware: Array<(prop: string | symbol, value: unknown, oldValue?: unknown) => void> = [],
+    options: { maxHistory?: number } = {}
+  ) {
     super();
     this._state = initialState;
-    this._history = [JSON.stringify(initialState)];
-    this._pointer = 0;
+    this._history = [];
+    this._pointer = -1;
+    this._maxHistory = options.maxHistory ?? 100;
     this._isInternalChange = false;
     this._isSyncing = false;
     this._storageHandler = null;
     this._middleware = middleware;
+    this._computed = new Map();
   }
 
   connectedCallback() {
@@ -34,24 +42,36 @@ export class CPXStore extends HTMLElement {
     }
 
     this.state = new Proxy(this._state, {
+      get: (target, prop) => {
+        const c = this._computed.get(prop as string);
+        if (c) {
+          if (c.dirty) { c.cache = c.fn(); c.dirty = false; }
+          return c.cache;
+        }
+        return target[prop];
+      },
       set: (target, prop, value) => {
+        if (this._computed.has(prop as string)) return true;
         if (target[prop] === value) return true;
 
-        // Run middleware
         this._middleware.forEach(fn => fn(prop, value, target[prop]));
 
-        // Record history if not an internal "undo/redo"
         if (!this._isInternalChange) {
-          // If we were in the middle of a redo chain and make a new change, 
-          // we cut off the "future."
           this._history = this._history.slice(0, this._pointer + 1);
-          this._history.push(JSON.stringify({ ...target, [prop]: value }));
+          this._history.push({ prop, old: target[prop], val: value });
           this._pointer++;
+          if (this._maxHistory > 0 && this._history.length > this._maxHistory) {
+            this._history.shift();
+            this._pointer--;
+          }
         }
 
         target[prop] = value;
 
-        // Persist to Disk (Triggers 'storage' event in other tabs)
+        this._computed.forEach(c => {
+          if (c.deps.includes(prop as string)) c.dirty = true;
+        });
+
         if (storageKey && !this._isSyncing) {
           localStorage.setItem(storageKey, JSON.stringify(target));
         }
@@ -108,23 +128,35 @@ export class CPXStore extends HTMLElement {
   }
 
   undo() {
-    if (this._pointer > 0) {
+    if (this._pointer >= 0) {
+      const d = this._history[this._pointer];
+      this._isInternalChange = true;
+      this.state[d.prop] = d.old;
+      this._isInternalChange = false;
       this._pointer--;
-      this._applyHistory();
     }
   }
 
   redo() {
     if (this._pointer < this._history.length - 1) {
       this._pointer++;
-      this._applyHistory();
+      const d = this._history[this._pointer];
+      this._isInternalChange = true;
+      this.state[d.prop] = d.val;
+      this._isInternalChange = false;
     }
   }
 
-  _applyHistory() {
-    this._isInternalChange = true;
-    const snapshot = JSON.parse(this._history[this._pointer]);
-    Object.assign(this.state, snapshot);
-    this._isInternalChange = false;
+  computed(name: string, deps: string[], fn: () => unknown) {
+    this._computed.set(name, { deps, fn, cache: undefined, dirty: true });
+  }
+
+  async dispatch(action: (state: Record<string | symbol, unknown>) => Promise<void>) {
+    try {
+      await action(this.state);
+    } catch (error) {
+      this.dispatchEvent(new CustomEvent('dispatch-error', { detail: { error }, bubbles: true }));
+      throw error;
+    }
   }
 }

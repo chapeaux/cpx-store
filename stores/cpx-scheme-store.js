@@ -1,16 +1,2 @@
-import { CPXStore } from "../cpx-store.ts";
-export class CPXSchemeStore extends CPXStore {
-    constructor() {
-        super({ scheme: 'light dark' }, [
-            (prop, val) => console.log(`[Mutation] ${prop} set to:`, val)
-        ]);
-    }
-    connectedCallback() {
-        super.connectedCallback();
-        document.body.className = this.state.scheme;
-    }
-    setScheme(type) {
-        this.state.scheme = type;
-    }
-}
-customElements.define('cpx-scheme-store', CPXSchemeStore);
+var a=class extends HTMLElement{_state;_history;_pointer;_maxHistory;_isInternalChange;_isSyncing;_storageHandler;_middleware;_computed;state;constructor(s={},t=[],e={}){super(),this._state=s,this._history=[],this._pointer=-1,this._maxHistory=e.maxHistory??100,this._isInternalChange=!1,this._isSyncing=!1,this._storageHandler=null,this._middleware=t,this._computed=new Map}connectedCallback(){let s=this.getAttribute("persist");if(s)try{let t=localStorage.getItem(s);t&&Object.assign(this._state,JSON.parse(t))}catch{}this.state=new Proxy(this._state,{get:(t,e)=>{let i=this._computed.get(e);return i?(i.dirty&&(i.cache=i.fn(),i.dirty=!1),i.cache):t[e]},set:(t,e,i)=>(this._computed.has(e)||t[e]===i||(this._middleware.forEach(n=>n(e,i,t[e])),this._isInternalChange||(this._history=this._history.slice(0,this._pointer+1),this._history.push({prop:e,old:t[e],val:i}),this._pointer++,this._maxHistory>0&&this._history.length>this._maxHistory&&(this._history.shift(),this._pointer--)),t[e]=i,this._computed.forEach(n=>{n.deps.includes(e)&&(n.dirty=!0)}),s&&!this._isSyncing&&localStorage.setItem(s,JSON.stringify(t)),this._broadcast(e,i)),!0)}),s&&(this._storageHandler=t=>{if(t.key===s)try{this.sync(JSON.parse(t.newValue))}catch{}},window.addEventListener("storage",this._storageHandler))}disconnectedCallback(){this._storageHandler&&(window.removeEventListener("storage",this._storageHandler),this._storageHandler=null)}sync(s){this._isSyncing=!0;let t={...this._state};Object.assign(this.state,s),this._isSyncing=!1,this.onStorageChanged({...this._state},t)}onStorageChanged(s,t){}_broadcast(s,t,e="app-state-update"){this.dispatchEvent(new CustomEvent("change",{detail:{prop:s,value:t},bubbles:!0})),globalThis.dispatchEvent(new CustomEvent(e,{detail:{store:this.tagName,prop:s,value:t}}))}undo(){if(this._pointer>=0){let s=this._history[this._pointer];this._isInternalChange=!0,this.state[s.prop]=s.old,this._isInternalChange=!1,this._pointer--}}redo(){if(this._pointer<this._history.length-1){this._pointer++;let s=this._history[this._pointer];this._isInternalChange=!0,this.state[s.prop]=s.val,this._isInternalChange=!1}}computed(s,t,e){this._computed.set(s,{deps:t,fn:e,cache:void 0,dirty:!0})}async dispatch(s){try{await s(this.state)}catch(t){throw this.dispatchEvent(new CustomEvent("dispatch-error",{detail:{error:t},bubbles:!0})),t}}};var h=class extends a{constructor(){super({scheme:"light dark"},[(s,t)=>console.log(`[Mutation] ${String(s)} set to:`,t)])}connectedCallback(){super.connectedCallback(),document.body.className=this.state.scheme}setScheme(s){this.state.scheme=s}};customElements.define("cpx-scheme-store",h);export{h as CPXSchemeStore};
+//# sourceMappingURL=cpx-scheme-store.js.map

@@ -44,8 +44,8 @@ describe("CPXStore: Infrastructure & Logic", () => {
     const store = new TestStore();
     store.connectedCallback();
 
-    store.state.count = 1; // Snapshot 1
-    store.state.count = 2; // Snapshot 2
+    store.state.count = 1;
+    store.state.count = 2;
     expect(store.state.count).to.equal(2);
 
     store.undo();
@@ -53,6 +53,39 @@ describe("CPXStore: Infrastructure & Logic", () => {
 
     store.redo();
     expect(store.state.count).to.equal(2);
+  });
+
+  it("should undo multiple changes in reverse order", () => {
+    const store = new TestStore();
+    store.connectedCallback();
+
+    store.state.count = 1;
+    store.state.count = 2;
+    store.state.count = 3;
+
+    store.undo();
+    expect(store.state.count).to.equal(2);
+    store.undo();
+    expect(store.state.count).to.equal(1);
+    store.undo();
+    expect(store.state.count).to.equal(0);
+    store.undo(); // no-op at initial state
+    expect(store.state.count).to.equal(0);
+  });
+
+  it("should discard forward history on new change after undo", () => {
+    const store = new TestStore();
+    store.connectedCallback();
+
+    store.state.count = 1;
+    store.state.count = 2;
+
+    store.undo();
+    expect(store.state.count).to.equal(1);
+
+    store.state.count = 5;
+    store.redo(); // no-op — future was discarded
+    expect(store.state.count).to.equal(5);
   });
 
   it("should dispatch 'change' events on mutation", () => {
@@ -266,6 +299,222 @@ describe("CPXStore: Persistence & Cross-Tab Sync", () => {
     }));
 
     expect(eventFired).to.be.true;
+
+    store.remove();
+  });
+});
+
+// --- maxHistory cap ---
+
+class CappedStore extends CPXStore {
+  constructor() {
+    super({ count: 0 }, [], { maxHistory: 3 });
+  }
+}
+if (!customElements.get("capped-store")) {
+  customElements.define("capped-store", CappedStore);
+}
+
+describe("CPXStore: maxHistory cap", () => {
+
+  it("should limit history to maxHistory entries", () => {
+    const store = new CappedStore();
+    store.connectedCallback();
+
+    store.state.count = 1;
+    store.state.count = 2;
+    store.state.count = 3;
+    store.state.count = 4;
+
+    expect(store._history.length).to.equal(3);
+    // oldest entry (count=1) was dropped
+    store.undo();
+    expect(store.state.count).to.equal(3);
+    store.undo();
+    expect(store.state.count).to.equal(2);
+    store.undo(); // oldest remaining
+    expect(store.state.count).to.equal(1);
+    store.undo(); // no-op — at limit
+    expect(store.state.count).to.equal(1);
+  });
+});
+
+// --- Computed / Derived State ---
+
+class ComputedStore extends CPXStore {
+  constructor() {
+    super({ price: 10, qty: 2 });
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.computed('total', ['price', 'qty'], () => {
+      return (this.state.price as number) * (this.state.qty as number);
+    });
+  }
+}
+if (!customElements.get("computed-store")) {
+  customElements.define("computed-store", ComputedStore);
+}
+
+describe("CPXStore: Computed State", () => {
+
+  it("should return the computed value", () => {
+    const store = document.createElement("computed-store") as ComputedStore;
+    document.body.appendChild(store);
+
+    expect(store.state.total).to.equal(20);
+
+    store.remove();
+  });
+
+  it("should recompute when a dependency changes", () => {
+    const store = document.createElement("computed-store") as ComputedStore;
+    document.body.appendChild(store);
+
+    store.state.price = 5;
+    expect(store.state.total).to.equal(10);
+
+    store.state.qty = 4;
+    expect(store.state.total).to.equal(20);
+
+    store.remove();
+  });
+
+  it("should cache and not recompute when non-dependency changes", () => {
+    let callCount = 0;
+    const store = document.createElement("computed-store") as ComputedStore;
+    document.body.appendChild(store);
+    store.computed('derived', ['price'], () => {
+      callCount++;
+      return (store.state.price as number) * 10;
+    });
+
+    expect(store.state.derived).to.equal(100);
+    expect(callCount).to.equal(1);
+
+    // access again without any change — should use cache
+    expect(store.state.derived).to.equal(100);
+    expect(callCount).to.equal(1);
+
+    // change non-dependency — should still use cache
+    store.state.qty = 99;
+    expect(store.state.derived).to.equal(100);
+    expect(callCount).to.equal(1);
+
+    // change dependency — should recompute
+    store.state.price = 3;
+    expect(store.state.derived).to.equal(30);
+    expect(callCount).to.equal(2);
+
+    store.remove();
+  });
+
+  it("should silently ignore writes to computed properties", () => {
+    const store = document.createElement("computed-store") as ComputedStore;
+    document.body.appendChild(store);
+
+    store.state.total = 999;
+    expect(store.state.total).to.equal(20);
+
+    store.remove();
+  });
+
+  it("should not include computed values in history", () => {
+    const store = document.createElement("computed-store") as ComputedStore;
+    document.body.appendChild(store);
+
+    store.state.price = 5;
+    // history should contain a delta for 'price', not 'total'
+    const lastDelta = store._history[store._history.length - 1];
+    expect(lastDelta.prop).to.equal('price');
+
+    store.remove();
+  });
+
+  it("should recompute correctly after undo", () => {
+    const store = document.createElement("computed-store") as ComputedStore;
+    document.body.appendChild(store);
+
+    expect(store.state.total).to.equal(20); // 10 * 2
+    store.state.price = 5;
+    expect(store.state.total).to.equal(10); // 5 * 2
+
+    store.undo();
+    expect(store.state.total).to.equal(20); // 10 * 2
+
+    store.remove();
+  });
+});
+
+// --- Async Dispatch ---
+
+describe("CPXStore: Async Dispatch", () => {
+
+  it("should apply state changes from an async action", async () => {
+    const store = new TestStore();
+    store.connectedCallback();
+
+    await store.dispatch(async (state) => {
+      state.count = 42;
+    });
+
+    expect(store.state.count).to.equal(42);
+  });
+
+  it("should dispatch a dispatch-error event and reject on failure", async () => {
+    const store = document.createElement("test-store") as TestStore;
+    document.body.appendChild(store);
+
+    let errorDetail: any = null;
+    store.addEventListener('dispatch-error', (e: any) => {
+      errorDetail = e.detail;
+    });
+
+    try {
+      await store.dispatch(async () => {
+        throw new Error('fetch failed');
+      });
+      expect.fail('should have thrown');
+    } catch (e: any) {
+      expect(e.message).to.equal('fetch failed');
+    }
+
+    expect(errorDetail).to.exist;
+    expect(errorDetail.error.message).to.equal('fetch failed');
+
+    store.remove();
+  });
+
+  it("should record history for state changes inside dispatch", async () => {
+    const store = new TestStore();
+    store.connectedCallback();
+
+    await store.dispatch(async (state) => {
+      state.count = 10;
+      state.count = 20;
+    });
+
+    expect(store.state.count).to.equal(20);
+    store.undo();
+    expect(store.state.count).to.equal(10);
+    store.undo();
+    expect(store.state.count).to.equal(0);
+  });
+
+  it("should fire middleware for changes inside dispatch", async () => {
+    let middlewareFired = false;
+    const store = document.createElement("test-store") as TestStore;
+    document.body.appendChild(store);
+    // @ts-ignore: Accessing internal middleware for testing
+    store._middleware = [(prop: string | symbol, val: unknown) => {
+      if (prop === 'count' && val === 7) middlewareFired = true;
+    }];
+
+    await store.dispatch(async (state) => {
+      state.count = 7;
+    });
+
+    expect(middlewareFired).to.be.true;
 
     store.remove();
   });
