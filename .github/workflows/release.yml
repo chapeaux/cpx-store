@@ -33,6 +33,9 @@ jobs:
             "
           done
 
+      - name: Publish to JSR
+        run: deno publish --allow-dirty
+
       - run: deno task build
 
       - name: Create GitHub Release
@@ -44,6 +47,3 @@ jobs:
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish to JSR
-        run: deno publish
