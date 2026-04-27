@@ -1,15 +1,18 @@
 import { CPXStore } from "../cpx-store.ts";
+import { middlewarePlugin } from "../plugins/middleware.ts";
 
 export class CPXSchemeStore extends CPXStore {
   constructor() {
-    super({ scheme: 'light dark' }, [
-      (prop, val) => console.log(`[Mutation] ${String(prop)} set to:`, val)
-    ]);
+    super(
+      { scheme: 'light dark' },
+      middlewarePlugin([
+        (prop, val) => console.log(`[Mutation] ${String(prop)} set to:`, val)
+      ])
+    );
   }
 
   override connectedCallback() {
     super.connectedCallback();
-    // Sync scheme on initial load
     document.body.className = this.state.scheme as string;
   }
 

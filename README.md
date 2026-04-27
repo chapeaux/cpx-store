@@ -1,6 +1,6 @@
 # CPX Store
 
-> A reactive state management web component with built-in persistence, history tracking, and cross-tab synchronization.
+> Reactive state management with a plugin architecture, signal-inspired computed properties, and a headless core that runs anywhere JavaScript runs.
 
 [![License](https://img.shields.io/badge/license-SEE%20LICENSE-blue)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
@@ -8,14 +8,17 @@
 
 ## Features
 
-- 🎯 **Framework-Agnostic** - Works with vanilla JavaScript, React, Vue, or any framework
-- 🔄 **Reactive State** - Proxy-based state management with automatic change detection
-- 📝 **History Tracking** - Built-in undo/redo functionality
-- 💾 **Persistent Storage** - Optional localStorage integration
-- 🔗 **Cross-Tab Sync** - Automatic state synchronization across browser tabs
-- 🎨 **Middleware Support** - Extensible with custom middleware functions
-- 🧪 **Well Tested** - Comprehensive test suite running in real browsers
-- 📦 **Zero Dependencies** - Pure Web Components standard
+- **Framework-Agnostic** — Works with vanilla JavaScript, React, Vue, Lit, Svelte, or server-side code
+- **Headless Core** — `CPXStoreCore` runs in Node, Deno, Bun, and Cloudflare Workers with no DOM
+- **Plugin Architecture** — Opt into middleware, history, persistence, and collaboration — or use none
+- **Signal-Inspired Reactivity** — Auto-tracked computed properties with no dependency arrays
+- **Microtask-Coalesced Events** — Multiple mutations in one tick produce one event
+- **Batching and Transactions** — `batch()` for explicit grouping, `transaction()` for rollback on error
+- **Nested State** — Deep object access via recursive Proxies with dot-path change tracking
+- **History Strategies** — Per-property undo/redo with snapshot, patch, or none strategies
+- **Persistent Storage** — Optional localStorage with cross-tab sync
+- **Pluggable Collaboration** — BroadcastChannel and WebSocket transports with conflict resolution
+- **Zero Dependencies** — ~1,040 lines of TypeScript total
 
 ## Installation
 
@@ -27,301 +30,427 @@ deno add jsr:@chapeaux/cpx-store
 npm install @chapeaux/cpx-store
 ```
 
-> **[View on JSR](https://jsr.io/@chapeaux/cpx-store)** — CPX Store is published to the JavaScript Registry with full TypeScript source, no build step required.
-
 ## Quick Start
 
-### Basic Usage
+### Browser — Web Component
 
 ```typescript
 import { CPXStore } from '@chapeaux/cpx-store';
+import { historyPlugin } from '@chapeaux/cpx-store/plugins/history';
 
-// Define your store
 class AppStore extends CPXStore {
   constructor() {
-    super({ count: 0 });
-  }
-
-  increment() {
-    this.state.count++;
+    super({ count: 0 }, historyPlugin());
   }
 }
 
-// Register the custom element
 customElements.define('app-store', AppStore);
 ```
 
 ```html
-<!-- Use in HTML -->
 <app-store id="store"></app-store>
 
 <script>
   const store = document.querySelector('#store');
 
-  // Listen to changes
   store.addEventListener('change', (e) => {
-    console.log('State changed:', e.detail);
+    const { changes } = e.detail;
+    if (changes.count)
+      console.log(`count: ${changes.count.old} → ${changes.count.val}`);
   });
 
-  // Update state
-  store.increment();
+  store.state.count++;
+  store.undo();
 </script>
 ```
 
-### With Middleware
+### Server / CLI — Headless
 
 ```typescript
-class CounterStore extends CPXStore {
-  constructor() {
-    super(
-      { count: 0 },
-      [
-        // Logging middleware
-        (prop, value, oldValue) => {
-          console.log(`${prop}: ${oldValue} → ${value}`);
-        },
-        // Validation middleware
-        (prop, value) => {
-          if (prop === 'count' && value < 0) {
-            throw new Error('Count cannot be negative');
-          }
-        }
-      ]
-    );
-  }
-}
+import { CPXStoreCore } from '@chapeaux/cpx-store/cpx-store-core';
+import { historyPlugin } from '@chapeaux/cpx-store/plugins/history';
 
-customElements.define('counter-store', CounterStore);
+const store = new CPXStoreCore({ count: 0 }, historyPlugin());
+
+store.computed('doubled', () => (store.state.count as number) * 2);
+
+store.state.count = 5;
+console.log(store.state.doubled); // 10
+
+store.undo();
+console.log(store.state.count);   // 0
 ```
 
-### With Persistence
+`CPXStoreCore` initializes immediately in the constructor. No DOM, no `connectedCallback`, no `customElements.define`. Same plugins, same API.
+
+## Constructor
+
+```typescript
+// Browser
+new CPXStore(initialState, ...plugins)
+
+// Headless
+new CPXStoreCore(initialState, ...plugins)
+```
+
+- `initialState` — Plain object with initial values
+- `...plugins` — Zero or more `StorePlugin` instances
+
+## Plugins
+
+### Middleware
+
+Runs before each mutation. Can throw to cancel.
+
+```typescript
+import { middlewarePlugin } from '@chapeaux/cpx-store/plugins/middleware';
+
+middlewarePlugin([
+  // Bare function — runs on every mutation
+  (prop, val, oldVal) => console.log(`${prop}: ${oldVal} → ${val}`),
+
+  // Filtered — only runs for matching properties
+  { filter: /^editor\./, fn: (prop, val) => validate(val) },
+  { filter: 'count', fn: (prop, val) => { if (val < 0) throw new Error('negative'); } },
+])
+```
+
+Filters accept a string (exact match or prefix), a RegExp, or a predicate function.
+
+### History
+
+Undo/redo with configurable per-property strategies.
+
+```typescript
+import { historyPlugin } from '@chapeaux/cpx-store/plugins/history';
+
+historyPlugin({
+  maxHistory: 100,             // default 100
+  defaultStrategy: 'snapshot', // default
+  strategies: {
+    content: 'patch',          // store text diffs, not full copies
+    cursor: 'none',            // exclude from history entirely
+  },
+  checkpointInterval: 20,     // full snapshot every 20 patch ops
+})
+```
+
+| Strategy | Stores | Use Case |
+|---|---|---|
+| `snapshot` | Full old + new values | Small values (default) |
+| `patch` | Text diffs or JSON Patch ops | Large strings, objects |
+| `none` | Nothing | Cursor position, scroll offset |
+
+Methods added to the store by this plugin: `undo()`, `redo()`, `historyStrategy(prop, strategy)`, `checkpoint()`, `clearHistory()`.
+
+### Persistence
+
+localStorage save/restore with cross-tab sync via `storage` events.
+
+```typescript
+import { persistencePlugin } from '@chapeaux/cpx-store/plugins/persistence';
+
+// Browser — reads key from the persist HTML attribute
+persistencePlugin()
+
+// Headless or explicit key
+persistencePlugin({ key: 'my-app-state' })
+```
 
 ```html
 <app-store persist="my-app-state"></app-store>
 ```
 
+The plugin restores state from localStorage on init, writes once per flush (not per mutation), and listens for `storage` events from other tabs. In environments without localStorage, storage operations are silently skipped.
+
+### Collaboration
+
+Pluggable sync transport with operation log and conflict resolution.
+
 ```typescript
-// State is automatically saved to localStorage
-// and restored on page reload
-const store = document.querySelector('app-store');
-store.state.count = 42; // Automatically persisted
+import { collabPlugin } from '@chapeaux/cpx-store/plugins/collab';
+import { BroadcastChannelTransport } from '@chapeaux/cpx-store/transports/broadcast-channel';
+import { WebSocketTransport } from '@chapeaux/cpx-store/transports/websocket';
+
+// Same-origin tab sync
+collabPlugin({ transport: new BroadcastChannelTransport('my-channel') })
+
+// Multi-user sync with automatic reconnection
+collabPlugin({ transport: new WebSocketTransport('wss://example.com/sync') })
+
+// Custom conflict resolution
+collabPlugin({
+  transport: new WebSocketTransport('wss://example.com/sync'),
+  resolver: {
+    resolve(local, remote) {
+      return remote.timestamp >= local.timestamp ? remote : local;
+    }
+  }
+})
 ```
 
-### With Undo/Redo
+Methods added: `getOperationLog()`, `disconnect()`.
+
+## Computed Properties
+
+No dependency array — dependencies are auto-tracked during evaluation.
 
 ```typescript
-const store = document.querySelector('app-store');
+store.computed('total', () => {
+  return (store.state.price as number) * (store.state.qty as number);
+});
 
-store.state.count = 1;
-store.state.count = 2;
-store.state.count = 3;
-
-store.undo(); // count = 2
-store.undo(); // count = 1
-store.redo(); // count = 2
+store.state.price = 5;
+console.log(store.state.total); // recomputed automatically
 ```
 
-## API Reference
-
-### Constructor
+Conditional dependencies work correctly:
 
 ```typescript
-constructor(initialState = {}, middleware = [])
+store.computed('value', () => {
+  return store.state.useA ? store.state.a : store.state.b;
+});
+// Only tracks state.a when state.useA is true
 ```
 
-**Parameters:**
-- `initialState` - Object containing the initial state
-- `middleware` - Array of middleware functions `(prop, value, oldValue) => void`
-
-### Properties
-
-- `state` - Reactive proxy to the store's state (available after `connectedCallback`)
-
-### Methods
-
-#### `undo()`
-Reverts the state to the previous snapshot in history.
-
-#### `redo()`
-Advances the state to the next snapshot in history.
-
-### Events
-
-#### `change`
-Fired whenever state is modified.
+Transitive dependencies chain automatically:
 
 ```typescript
-store.addEventListener('change', (event) => {
-  const { prop, value } = event.detail;
-  console.log(`Property "${prop}" changed to:`, value);
+store.computed('doubled', () => (store.state.base as number) * 2);
+store.computed('quadrupled', () => (store.state.doubled as number) * 2);
+```
+
+## Batching and Transactions
+
+Multiple mutations in the same tick are coalesced into one event by default. For explicit control:
+
+```typescript
+// Synchronous flush at end of block
+store.batch(() => {
+  store.state.a = 1;
+  store.state.b = 2;
+}); // one event
+
+// Rollback on error
+store.transaction(() => {
+  store.state.balance -= 100;
+  if (store.state.balance < 0) throw new Error('insufficient');
+}); // state unchanged, no event
+
+// Async with auto-batching
+await store.dispatch(async (state) => {
+  const data = await fetch('/api');
+  state.items = await data.json();
+  state.loading = false;
+}); // one event after promise resolves
+```
+
+## Nested State
+
+Deep object properties are accessible through recursive Proxies:
+
+```typescript
+const store = new CPXStoreCore({
+  editor: {
+    file1: { content: 'hello', dirty: false },
+    file2: { content: 'world', dirty: true },
+  }
+});
+
+store.state.editor.file1.content = 'updated';
+// Change tracked as prop: "editor.file1.content"
+```
+
+Each nested path gets its own reactive signal, so computed values that read `state.editor.file1.content` are not invalidated when `file2` changes.
+
+## Events
+
+### Browser (`CPXStore`)
+
+```typescript
+store.addEventListener('change', (e) => {
+  const { changes } = e.detail;
+  // changes is an object: { propName: { old, val }, ... }
+  for (const [prop, { old, val }] of Object.entries(changes)) {
+    console.log(`${prop}: ${old} → ${val}`);
+  }
 });
 ```
 
-**Global Event:**
-Also dispatches a global `app-state-update` event on `window` for legacy integrations.
+A global `app-state-update` event is also dispatched on `window` with `{ store: tagName, changes }`.
 
-## Advanced Usage
-
-### Cross-Tab Synchronization
+### Headless (`CPXStoreCore`)
 
 ```typescript
-class SyncedStore extends CPXStore {
-  constructor() {
-    super({ data: 'initial' });
-
-    // Listen for changes from other tabs
-    window.addEventListener('storage', (e) => {
-      if (e.key === this.getAttribute('persist')) {
-        this._isSyncing = true;
-        Object.assign(this.state, JSON.parse(e.newValue));
-        this._isSyncing = false;
-      }
-    });
+const unsub = store.onChange((changes) => {
+  // changes is a Map<string, { old, val }>
+  for (const [prop, { old, val }] of changes) {
+    console.log(`${prop}: ${old} → ${val}`);
   }
-}
+});
 
-customElements.define('synced-store', SyncedStore);
+// Later:
+unsub();
 ```
 
-```html
-<synced-store persist="shared-state"></synced-store>
-```
+### Sync
 
-### Custom Actions
+Apply remote state without triggering outbound sync:
 
 ```typescript
-class UserStore extends CPXStore {
+store.sync({ count: 42, theme: 'dark' });
+```
+
+Override `onSyncReceived` for side effects:
+
+```typescript
+class MyStore extends CPXStore {
+  onSyncReceived(newState, oldState) {
+    if (newState.theme !== oldState.theme) {
+      document.body.className = newState.theme;
+    }
+  }
+}
+```
+
+## SSR Hydration
+
+```typescript
+// Server
+import { CPXStoreCore } from '@chapeaux/cpx-store/cpx-store-core';
+
+const store = new CPXStoreCore({ user: null, items: [] });
+store.state.user = await db.getUser(sessionId);
+store.state.items = await db.getItems(store.state.user.id);
+
+const html = `<script>window.__STATE__ = ${JSON.stringify(store.toJSON())}</script>`;
+```
+
+```typescript
+// Client
+import { CPXStore } from '@chapeaux/cpx-store';
+import { historyPlugin } from '@chapeaux/cpx-store/plugins/history';
+
+class MyStore extends CPXStore {
   constructor() {
-    super({
-      name: 'Guest',
-      email: '',
-      loggedIn: false
-    });
-  }
-
-  login(name, email) {
-    this.state.name = name;
-    this.state.email = email;
-    this.state.loggedIn = true;
-  }
-
-  logout() {
-    this.state.name = 'Guest';
-    this.state.email = '';
-    this.state.loggedIn = false;
+    super(window.__STATE__, historyPlugin());
   }
 }
-
-customElements.define('user-store', UserStore);
+customElements.define('my-store', MyStore);
 ```
 
-### Integration with React
+## Working with Large Data Structures
 
-```jsx
-import { useEffect, useState } from 'react';
+The nested proxy system creates a `ReactiveState` signal and a cached `Proxy` for every path segment accessed. For moderate-cardinality application state — open tabs, selections, theme, layout — this is the right model. For large collections (10K+ node file trees, streaming language server diagnostics, terminal buffers), the per-node overhead becomes the bottleneck.
 
-function useStore(storeName) {
-  const [state, setState] = useState({});
+The recommended pattern: store a **version counter** in the proxied state, and keep the heavy data structure outside the proxy. Computed values and change handlers react to the counter bump, then read from the external structure directly.
 
-  useEffect(() => {
-    const store = document.querySelector(storeName);
-    if (!store) return;
+```typescript
+class IDEStore extends CPXStore {
+  fileTree = new FileTree();
+  diagnostics = new Map();
 
-    const handleChange = () => setState({ ...store.state });
-    store.addEventListener('change', handleChange);
-    handleChange(); // Initial sync
+  constructor() {
+    super(
+      {
+        fileTreeVersion: 0,
+        diagnosticVersion: 0,
+        selectedFile: null,
+        openTabs: [],
+        theme: 'dark',
+      },
+      historyPlugin({
+        strategies: {
+          fileTreeVersion: 'none',
+          diagnosticVersion: 'none',
+        }
+      }),
+      persistencePlugin()
+    );
+  }
 
-    return () => store.removeEventListener('change', handleChange);
-  }, [storeName]);
+  // One proxy write per batch of tree changes
+  updateFileTree(changes) {
+    this.fileTree.applyBatch(changes);
+    this.state.fileTreeVersion++;
+  }
 
-  return state;
-}
-
-function Counter() {
-  const { count } = useStore('app-store');
-  const store = document.querySelector('app-store');
-
-  return (
-    <div>
-      <p>Count: {count}</p>
-      <button onClick={() => store.state.count++}>
-        Increment
-      </button>
-    </div>
-  );
+  // One proxy write per diagnostic update
+  setDiagnostics(uri, entries) {
+    this.diagnostics.set(uri, entries);
+    this.state.diagnosticVersion++;
+  }
 }
 ```
 
-## Examples
+Computed values that depend on the version counter re-evaluate when it bumps:
 
-Check out the [demo](./demo) folder for complete examples including:
-
-- **Write-Only Components** - Fire-and-forget action buttons
-- **Legacy JavaScript** - Integration with plain scripts
-- **Lazy Loading** - Selective hydration with IntersectionObserver
-- **Theme Switching** - Real-world state management example
-
-## Development
-
-### Setup
-
-```bash
-# Install dependencies
-deno install
-
-# Run tests
-deno task test:browser
-
-# Run tests in watch mode
-deno task test:watch
-
-# Build
-deno task build
-
-# Serve demo
-deno task serve
+```typescript
+store.computed('errorCount', () => {
+  store.state.diagnosticVersion; // subscribe to changes
+  let count = 0;
+  for (const entries of store.diagnostics.values()) {
+    count += entries.filter(d => d.severity === 'error').length;
+  }
+  return count;
+});
 ```
 
-### Running Tests
+The store manages coordination state (what is selected, what is open, what version are we on). The heavy data lives in purpose-built structures that are optimized for their specific access patterns. Change events tell the UI *that* something changed; the UI reads the external structure to find out *what*.
 
-Tests run in real browsers (Chromium and Firefox) using Web Test Runner:
+This mirrors how production applications use Redux or Zustand: you store IDs and metadata in the state tree, not the full dataset. The difference is that cpx-store makes this explicit through the version-counter pattern rather than hiding it behind normalization libraries.
 
-```bash
-deno task test:browser
-```
-
-### Project Structure
+## Project Structure
 
 ```
 cpx-store/
 ├── src/
-│   ├── cpx-store.ts           # Base store class
+│   ├── cpx-store-core.ts         # Headless core (CPXStoreCoreMixin + CPXStoreCore)
+│   ├── cpx-store.ts              # Web Component wrapper (CPXStore)
+│   ├── reactivity.ts             # ReactiveState, ReactiveComputed
+│   ├── types.ts                  # StorePlugin, SyncTransport, StateOperation
+│   ├── plugins/
+│   │   ├── middleware.ts          # Filterable middleware
+│   │   ├── history.ts            # Undo/redo with strategies
+│   │   ├── persistence.ts        # localStorage + cross-tab sync
+│   │   └── collab.ts             # Collaboration transport
+│   ├── transports/
+│   │   ├── broadcast-channel.ts   # BroadcastChannel transport
+│   │   └── websocket.ts          # WebSocket transport with reconnection
+│   ├── utils/
+│   │   ├── nested-proxy.ts       # Recursive Proxy factory
+│   │   └── json-patch.ts         # RFC 6902 diff/apply
 │   └── stores/
-│       └── cpx-scheme-store.ts # Example store implementation
+│       └── cpx-scheme-store.ts   # Example store
 ├── test/
-│   ├── cpx-store.spec.ts      # Core functionality tests
-│   └── scheme-store.spec.ts   # Example store tests
-├── demo/
-│   ├── index.html             # Demo page
-│   ├── components.js          # Demo components
-│   └── stores.js              # Demo stores
-├── deno.json                  # Deno configuration
-├── tsconfig.json              # TypeScript configuration
-└── web-test-runner.config.mjs # Test runner configuration
+│   ├── cpx-store.spec.ts         # Core browser tests
+│   ├── cpx-store-core.test.ts    # Headless Deno tests
+│   ├── nested-state.spec.ts      # Nested proxy tests
+│   ├── history-strategies.spec.ts # History strategy tests
+│   ├── collab.spec.ts            # Collaboration tests
+│   └── scheme-store.spec.ts      # Example store tests
+├── demo/                         # Demo application
+├── deno.json
+├── tsconfig.json
+└── web-test-runner.config.mjs
+```
+
+## Development
+
+```bash
+deno install               # Install dependencies
+deno task test:browser     # Run browser tests (Chromium + Firefox)
+deno test test/cpx-store-core.test.ts  # Run headless tests
+deno task test:watch       # Watch mode
+deno task build            # Build
+deno task serve            # Dev server
 ```
 
 ## Browser Support
 
-CPX Store uses standard Web Components APIs and works in all modern browsers:
-
-- ✅ Chrome/Edge 54+
-- ✅ Firefox 63+
-- ✅ Safari 10.1+
-- ✅ Opera 41+
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+- Chrome/Edge 54+
+- Firefox 63+
+- Safari 10.1+
 
 ## License
 
@@ -329,11 +458,4 @@ SEE LICENSE IN [LICENSE](./LICENSE)
 
 ## Author
 
-**Luke Dary** - [ldary@redhat.com](mailto:ldary@redhat.com)
-[https://lukedary.com](https://lukedary.com)
-
-## Acknowledgments
-
-- Built with [Web Components](https://www.webcomponents.org/)
-- Tested with [@web/test-runner](https://modern-web.dev/docs/test-runner/overview/)
-- Powered by [Deno](https://deno.land/)
+**Luke Dary** — [ldary@redhat.com](mailto:ldary@redhat.com) — [lukedary.com](https://lukedary.com)

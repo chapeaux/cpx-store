@@ -1,33 +1,61 @@
-export declare class CPXStore extends HTMLElement {
-    _state: Record<string | symbol, unknown>;
-    _history: Array<{
-        prop: string | symbol;
-        old: unknown;
-        val: unknown;
-    }>;
-    _pointer: number;
-    _maxHistory: number;
-    _isInternalChange: boolean;
-    _isSyncing: boolean;
-    _storageHandler: ((e: StorageEvent) => void) | null;
-    _middleware: Array<(prop: string | symbol, value: unknown, oldValue?: unknown) => void>;
-    _computed: Map<string, {
-        deps: string[];
-        fn: () => unknown;
-        cache: unknown;
-        dirty: boolean;
-    }>;
-    state: Record<string | symbol, unknown>;
-    constructor(initialState?: {}, middleware?: Array<(prop: string | symbol, value: unknown, oldValue?: unknown) => void>, options?: {
-        maxHistory?: number;
-    });
+import type { StorePlugin } from './types.ts';
+declare const WebComponentBase: {
+    new (...args: any[]): {
+        [x: string]: any;
+        _state: Record<string, unknown>;
+        _signals: Map<string, import("./reactivity.ts").ReactiveState<unknown>>;
+        _computedSignals: Map<string, import("./reactivity.ts").ReactiveComputed<unknown>>;
+        _plugins: StorePlugin[];
+        _pendingChanges: Map<string, {
+            old: unknown;
+            val: unknown;
+        }>;
+        _changeHandlers: Set<(changes: Map<string, {
+            old: unknown;
+            val: unknown;
+        }>) => void>;
+        _flushScheduled: boolean;
+        _batchDepth: number;
+        _isSyncing: boolean;
+        _initialized: boolean;
+        state: Record<string, unknown>;
+        _setup(initialState?: Record<string, unknown>, plugins?: StorePlugin[]): void;
+        _resolveNestedPath(path: string): {
+            parent: Record<string, unknown>;
+            key: string;
+        };
+        _setProperty(prop: string, value: unknown): void;
+        _init(): void;
+        _destroy(): void;
+        use(plugin: StorePlugin): any;
+        computed(name: string, fn: () => unknown): void;
+        onChange(handler: (changes: Map<string, {
+            old: unknown;
+            val: unknown;
+        }>) => void): () => void;
+        _emitChanges(changes: Map<string, {
+            old: unknown;
+            val: unknown;
+        }>): void;
+        _scheduleFlush(): void;
+        _flush(): void;
+        batch(fn: () => void): void;
+        transaction(fn: () => void): void;
+        dispatch(action: (state: Record<string, unknown>) => Promise<void>): Promise<void>;
+        sync(incoming: Record<string, unknown>): void;
+        onSyncReceived(_newState: Record<string, unknown>, _oldState: Record<string, unknown>): void;
+        undo(): void;
+        redo(): void;
+        toJSON(): Record<string, unknown>;
+    };
+} & {
+    new (): HTMLElement;
+    prototype: HTMLElement;
+};
+export declare class CPXStore extends WebComponentBase {
+    constructor(initialState?: Record<string, unknown>, ...plugins: StorePlugin[]);
     connectedCallback(): void;
     disconnectedCallback(): void;
-    sync(state: Record<string, unknown>): void;
-    onStorageChanged(_newState: Record<string, unknown>, _oldState: Record<string, unknown>): void;
-    _broadcast(prop: string | symbol, value: unknown, eventName?: string): void;
-    undo(): void;
-    redo(): void;
-    computed(name: string, deps: string[], fn: () => unknown): void;
-    dispatch(action: (state: Record<string | symbol, unknown>) => Promise<void>): Promise<void>;
+    dispatch(action: (state: Record<string, unknown>) => Promise<void>): Promise<void>;
 }
+export type { StorePlugin } from './types.ts';
