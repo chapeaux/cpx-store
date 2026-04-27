@@ -1,7 +1,7 @@
-import { CPXStoreCoreMixin } from './cpx-store-core.ts';
+import { CPXStoreCoreMixin, type CPXStoreBase } from './cpx-store-core.ts';
 import type { StorePlugin } from './types.ts';
 
-const WebComponentBase = CPXStoreCoreMixin(HTMLElement);
+const WebComponentBase: typeof HTMLElement & (new (...args: any[]) => CPXStoreBase) = CPXStoreCoreMixin(HTMLElement);
 
 export class CPXStore extends WebComponentBase {
   constructor(initialState: Record<string, unknown> = {}, ...plugins: StorePlugin[]) {

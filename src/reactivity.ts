@@ -6,7 +6,7 @@ interface Trackable {
 
 export class ReactiveState<T> implements Trackable {
   _value: T;
-  _subscribers = new Set<ReactiveComputed<unknown>>();
+  _subscribers: Set<ReactiveComputed<unknown>> = new Set();
 
   constructor(value: T) {
     this._value = value;
@@ -30,8 +30,8 @@ export class ReactiveComputed<T> implements Trackable {
   _fn: () => T;
   _cache: T | undefined;
   _dirty = true;
-  _deps = new Set<Trackable>();
-  _subscribers = new Set<ReactiveComputed<unknown>>();
+  _deps: Set<Trackable> = new Set();
+  _subscribers: Set<ReactiveComputed<unknown>> = new Set();
 
   constructor(fn: () => T) {
     this._fn = fn;
