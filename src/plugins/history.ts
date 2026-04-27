@@ -1,7 +1,12 @@
+/**
+ * @module
+ * Undo/redo plugin with configurable per-property history strategies (snapshot, patch, none).
+ */
 import type { StorePlugin, HistoryStrategy, HistoryEntry } from '../types.ts';
 import { diffObjects, applyPatch, reversePatch as reverseObjectPatch } from '../utils/json-patch.ts';
 import type { PatchOp } from '../utils/json-patch.ts';
 
+/** Configuration for the history plugin. */
 export interface HistoryOptions {
   maxHistory?: number;
   defaultStrategy?: HistoryStrategy;
@@ -9,6 +14,7 @@ export interface HistoryOptions {
   checkpointInterval?: number;
 }
 
+/** Creates a plugin that records state changes for undo/redo with configurable per-property strategies. */
 export function historyPlugin(options: HistoryOptions = {}): StorePlugin {
   const maxHistory = options.maxHistory ?? 100;
   const defaultStrategy = options.defaultStrategy ?? 'snapshot';

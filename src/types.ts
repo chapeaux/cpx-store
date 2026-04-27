@@ -1,3 +1,4 @@
+/** Lifecycle hooks that a plugin can implement to intercept store operations. */
 export interface StorePlugin {
   name: string;
   onInit?(store: any): void;
@@ -8,8 +9,10 @@ export interface StorePlugin {
   onDestroy?(): void;
 }
 
+/** Controls how the history plugin records changes for a given property. */
 export type HistoryStrategy = 'snapshot' | 'patch' | 'none';
 
+/** A single entry in the undo/redo history stack. */
 export interface HistoryEntry {
   prop: string;
   strategy: HistoryStrategy;
@@ -20,11 +23,13 @@ export interface HistoryEntry {
   checkpointIndex?: number;
 }
 
+/** A middleware function with an optional filter for selective execution. */
 export interface MiddlewareEntry {
   filter?: string | RegExp | ((prop: string) => boolean);
   fn: (prop: string, value: unknown, oldValue?: unknown) => void;
 }
 
+/** Transport abstraction for sending and receiving state operations between peers. */
 export interface SyncTransport {
   send(op: StateOperation): void;
   onReceive(handler: (op: StateOperation) => void): void;
@@ -32,6 +37,7 @@ export interface SyncTransport {
   disconnect(): void;
 }
 
+/** A serializable record of a single state mutation, used by the collab plugin and transports. */
 export interface StateOperation {
   id: string;
   origin: string;

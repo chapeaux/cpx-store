@@ -1,9 +1,15 @@
+/**
+ * @module
+ * Headless store core that runs in any JavaScript runtime.
+ * Provides CPXStoreCoreMixin for custom base classes and CPXStoreCore for direct use.
+ */
 import { ReactiveState, ReactiveComputed } from './reactivity.ts';
 import { createNestedProxy } from './utils/nested-proxy.ts';
 import type { StorePlugin } from './types.ts';
 
 type Constructor = new (...args: any[]) => any;
 
+/** The full interface provided by the store core mixin, implemented by both CPXStoreCore and CPXStore. */
 export interface CPXStoreBase {
   _state: Record<string, unknown>;
   _signals: Map<string, ReactiveState<unknown>>;
@@ -37,6 +43,7 @@ export interface CPXStoreBase {
   toJSON(): Record<string, unknown>;
 }
 
+/** Injects all store state management logic into a base class. Apply to `HTMLElement` for a Web Component or to a bare class for headless use. */
 export function CPXStoreCoreMixin<T extends Constructor>(Base: T): T & (new (...args: any[]) => CPXStoreBase) {
   return class StoreBase extends Base {
     _state!: Record<string, unknown>;
@@ -329,8 +336,9 @@ function _isPlainObject(val: unknown): val is Record<string, unknown> {
     && Object.getPrototypeOf(val) === Object.prototype;
 }
 
-const CPXHeadlessBase = CPXStoreCoreMixin(class {});
+const CPXHeadlessBase: new (...args: any[]) => CPXStoreBase = CPXStoreCoreMixin(class {});
 
+/** Headless store that runs in any JavaScript runtime without a DOM. Initializes immediately in the constructor. */
 export class CPXStoreCore extends CPXHeadlessBase {
   constructor(initialState: Record<string, unknown> = {}, ...plugins: StorePlugin[]) {
     super();

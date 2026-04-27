@@ -4,6 +4,7 @@ interface Trackable {
   _subscribers: Set<ReactiveComputed<unknown>>;
 }
 
+/** A mutable reactive value that notifies subscribing computed values when it changes. */
 export class ReactiveState<T> implements Trackable {
   _value: T;
   _subscribers: Set<ReactiveComputed<unknown>> = new Set();
@@ -26,6 +27,7 @@ export class ReactiveState<T> implements Trackable {
   }
 }
 
+/** A derived reactive value that auto-tracks dependencies during evaluation and caches until invalidated. */
 export class ReactiveComputed<T> implements Trackable {
   _fn: () => T;
   _cache: T | undefined;
@@ -70,6 +72,7 @@ export class ReactiveComputed<T> implements Trackable {
   }
 }
 
+/** Executes a function without tracking any signal reads as dependencies. */
 export function untrack<T>(fn: () => T): T {
   const prev = activeTracking;
   activeTracking = null;

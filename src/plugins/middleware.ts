@@ -1,5 +1,10 @@
+/**
+ * @module
+ * Filterable middleware plugin that runs functions before each state mutation.
+ */
 import type { StorePlugin, MiddlewareEntry } from '../types.ts';
 
+/** Creates a plugin that runs middleware functions before each state mutation. Middleware can throw to cancel. */
 export function middlewarePlugin(
   entries: (MiddlewareEntry | MiddlewareEntry['fn'])[]
 ): StorePlugin {

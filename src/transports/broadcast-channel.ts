@@ -1,5 +1,10 @@
+/**
+ * @module
+ * BroadcastChannel-based transport for same-origin tab-to-tab state synchronization.
+ */
 import type { SyncTransport, StateOperation } from '../types.ts';
 
+/** Same-origin tab-to-tab transport using the BroadcastChannel API. Uses structured clone, no JSON serialization. */
 export class BroadcastChannelTransport implements SyncTransport {
   private _channelName: string;
   private _channel: BroadcastChannel | null = null;

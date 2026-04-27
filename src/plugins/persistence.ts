@@ -1,9 +1,15 @@
+/**
+ * @module
+ * localStorage persistence plugin with cross-tab synchronization via storage events.
+ */
 import type { StorePlugin } from '../types.ts';
 
+/** Configuration for the persistence plugin. */
 export interface PersistenceOptions {
   key?: string;
 }
 
+/** Creates a plugin that persists state to localStorage and syncs across browser tabs via storage events. */
 export function persistencePlugin(options: PersistenceOptions = {}): StorePlugin {
   let store: any;
   let storageKey: string | null = options.key ?? null;

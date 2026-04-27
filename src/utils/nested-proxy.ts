@@ -31,6 +31,7 @@ function ensureSignal(store: any, fullPath: string, value: unknown): ReactiveSta
   return signal;
 }
 
+/** Creates a recursive Proxy for nested object access, routing mutations through the store's pipeline with dot-path keys. */
 export function createNestedProxy(
   obj: Record<string, unknown>,
   parentPath: string,

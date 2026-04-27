@@ -1,5 +1,10 @@
+/**
+ * @module
+ * WebSocket-based transport for server-mediated multi-user state synchronization.
+ */
 import type { SyncTransport, StateOperation } from '../types.ts';
 
+/** WebSocket transport with automatic reconnection (exponential backoff) and outbound message queueing. */
 export class WebSocketTransport implements SyncTransport {
   private _url: string;
   private _protocols: string | string[] | undefined;

@@ -1,6 +1,7 @@
 import { CPXStore } from "../cpx-store.ts";
 import { middlewarePlugin } from "../plugins/middleware.ts";
 
+/** Example store that manages a light/dark color scheme preference with logging middleware. */
 export class CPXSchemeStore extends CPXStore {
   constructor() {
     super(

@@ -1,8 +1,14 @@
+/**
+ * @module
+ * Web Component store that dispatches DOM events on state changes.
+ * For headless/server use, import from `@chapeaux/cpx-store/cpx-store-core` instead.
+ */
 import { CPXStoreCoreMixin, type CPXStoreBase } from './cpx-store-core.ts';
 import type { StorePlugin } from './types.ts';
 
 const WebComponentBase: typeof HTMLElement & (new (...args: any[]) => CPXStoreBase) = CPXStoreCoreMixin(HTMLElement);
 
+/** Web Component store that bridges state changes to DOM events. Initializes in `connectedCallback`. */
 export class CPXStore extends WebComponentBase {
   constructor(initialState: Record<string, unknown> = {}, ...plugins: StorePlugin[]) {
     super();

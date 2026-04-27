@@ -1,9 +1,11 @@
+/** An RFC 6902 JSON Patch operation. */
 export interface PatchOp { op: 'add' | 'remove' | 'replace'; path: string; value?: unknown }
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
+/** Computes RFC 6902 patch operations between two plain objects, up to one level of nesting. */
 export function diffObjects(oldObj: Record<string, unknown>, newObj: Record<string, unknown>): PatchOp[] {
   const ops: PatchOp[] = [];
   const oldKeys = new Set(Object.keys(oldObj));
@@ -28,6 +30,7 @@ export function diffObjects(oldObj: Record<string, unknown>, newObj: Record<stri
   return ops;
 }
 
+/** Applies an array of patch operations to an object and returns a new object. */
 export function applyPatch(obj: Record<string, unknown>, ops: PatchOp[]): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const k of Object.keys(obj)) result[k] = isObj(obj[k]) ? { ...(obj[k] as Record<string, unknown>) } : obj[k];
@@ -43,6 +46,7 @@ export function applyPatch(obj: Record<string, unknown>, ops: PatchOp[]): Record
   return result;
 }
 
+/** Generates the reverse patch operations needed to undo a forward patch. */
 export function reversePatch(oldObj: Record<string, unknown>, ops: PatchOp[]): PatchOp[] {
   return ops.map(({ op, path }) => {
     const parts = path.split('/').filter(Boolean);

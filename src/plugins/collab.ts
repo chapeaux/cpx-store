@@ -1,9 +1,15 @@
+/**
+ * @module
+ * Collaboration plugin with pluggable transports, operation logging, and conflict resolution.
+ */
 import type { StorePlugin, SyncTransport, StateOperation } from '../types.ts';
 
+/** Determines which operation wins when local and remote mutations conflict on the same property. */
 export interface ConflictResolver {
   resolve(local: StateOperation, remote: StateOperation): StateOperation;
 }
 
+/** Configuration for the collaboration plugin. */
 export interface CollabOptions {
   transport: SyncTransport;
   clientId?: string;
@@ -17,6 +23,7 @@ class LastWriterWinsResolver implements ConflictResolver {
   }
 }
 
+/** Creates a plugin that broadcasts local mutations and applies remote operations via a pluggable transport. */
 export function collabPlugin(options: CollabOptions): StorePlugin {
   const transport = options.transport;
   const clientId = options.clientId ?? crypto.randomUUID();
