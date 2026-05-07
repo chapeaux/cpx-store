@@ -16,4 +16,5 @@ jobs:
         with:
           node-version: 24
       - run: deno task build
+      - run: npx playwright install --with-deps chromium firefox
       - run: deno task test:browser
