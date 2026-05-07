@@ -171,12 +171,20 @@ Pluggable sync transport with operation log and conflict resolution.
 import { collabPlugin } from '@chapeaux/cpx-store/plugins/collab';
 import { BroadcastChannelTransport } from '@chapeaux/cpx-store/transports/broadcast-channel';
 import { WebSocketTransport } from '@chapeaux/cpx-store/transports/websocket';
+import { SolidTransport } from '@chapeaux/cpx-store/transports/solid';
 
 // Same-origin tab sync
 collabPlugin({ transport: new BroadcastChannelTransport('my-channel') })
 
 // Multi-user sync with automatic reconnection
 collabPlugin({ transport: new WebSocketTransport('wss://example.com/sync') })
+
+// Decentralized sync via a Solid pod
+collabPlugin({
+  transport: new SolidTransport('https://pod.example.org/apps/state.json', {
+    fetch: authenticatedFetch, // from @inrupt/solid-client-authn-browser or similar
+  })
+})
 
 // Custom conflict resolution
 collabPlugin({
@@ -416,7 +424,8 @@ cpx-store/
 │   │   └── collab.ts             # Collaboration transport
 │   ├── transports/
 │   │   ├── broadcast-channel.ts   # BroadcastChannel transport
-│   │   └── websocket.ts          # WebSocket transport with reconnection
+│   │   ├── websocket.ts          # WebSocket transport with reconnection
+│   │   └── solid.ts             # Solid pod transport with Notifications
 │   ├── utils/
 │   │   ├── nested-proxy.ts       # Recursive Proxy factory
 │   │   └── json-patch.ts         # RFC 6902 diff/apply
