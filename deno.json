@@ -1,6 +1,6 @@
 {
     "name": "@chapeaux/cpx-store",
-    "version": "0.7.5",
+    "version": "0.8.0",
     "description": "Reactive state management with a plugin architecture, signal-inspired computed properties, and a headless core that runs anywhere JavaScript runs.",
     "exports": {
         ".": "./src/cpx-store.ts",
@@ -11,7 +11,8 @@
         "./plugins/collab": "./src/plugins/collab.ts",
         "./transports/broadcast-channel": "./src/transports/broadcast-channel.ts",
         "./transports/websocket": "./src/transports/websocket.ts",
-        "./transports/solid": "./src/transports/solid.ts"
+        "./transports/solid": "./src/transports/solid.ts",
+        "./transports/sse": "./src/transports/sse.ts"
     },
     "publish": {
         "include": [

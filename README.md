@@ -17,7 +17,7 @@
 - **Nested State** — Deep object access via recursive Proxies with dot-path change tracking
 - **History Strategies** — Per-property undo/redo with snapshot, patch, or none strategies
 - **Persistent Storage** — Optional localStorage with cross-tab sync
-- **Pluggable Collaboration** — BroadcastChannel and WebSocket transports with conflict resolution
+- **Pluggable Collaboration** — BroadcastChannel, WebSocket, SSE, and Solid transports with conflict resolution
 - **Zero Dependencies** — ~1,040 lines of TypeScript total
 
 ## Installation
@@ -171,6 +171,7 @@ Pluggable sync transport with operation log and conflict resolution.
 import { collabPlugin } from '@chapeaux/cpx-store/plugins/collab';
 import { BroadcastChannelTransport } from '@chapeaux/cpx-store/transports/broadcast-channel';
 import { WebSocketTransport } from '@chapeaux/cpx-store/transports/websocket';
+import { SSETransport } from '@chapeaux/cpx-store/transports/sse';
 import { SolidTransport } from '@chapeaux/cpx-store/transports/solid';
 
 // Same-origin tab sync
@@ -178,6 +179,14 @@ collabPlugin({ transport: new BroadcastChannelTransport('my-channel') })
 
 // Multi-user sync with automatic reconnection
 collabPlugin({ transport: new WebSocketTransport('wss://example.com/sync') })
+
+// Server-sent events (receive via EventSource, send via POST)
+collabPlugin({
+  transport: new SSETransport('/api/events', { apiUrl: '/api/state' })
+})
+
+// Receive-only SSE (no outbound POST)
+collabPlugin({ transport: new SSETransport('/api/events') })
 
 // Decentralized sync via a Solid pod
 collabPlugin({
@@ -425,6 +434,7 @@ cpx-store/
 │   ├── transports/
 │   │   ├── broadcast-channel.ts   # BroadcastChannel transport
 │   │   ├── websocket.ts          # WebSocket transport with reconnection
+│   │   ├── sse.ts                # SSE transport with reconnection
 │   │   └── solid.ts             # Solid pod transport with Notifications
 │   ├── utils/
 │   │   ├── nested-proxy.ts       # Recursive Proxy factory
@@ -437,6 +447,7 @@ cpx-store/
 │   ├── nested-state.spec.ts      # Nested proxy tests
 │   ├── history-strategies.spec.ts # History strategy tests
 │   ├── collab.spec.ts            # Collaboration tests
+│   ├── sse.spec.ts               # SSE transport tests
 │   └── scheme-store.spec.ts      # Example store tests
 ├── demo/                         # Demo application
 ├── deno.json
