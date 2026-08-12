@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>React only — performance comparison</title>
+  <!-- Vendored locally in ./vendor/ (react@18.3.1, react-dom@18.3.1, @babel/standalone@7.29.8)
+       instead of loaded from unpkg, so recording doesn't depend on a CDN being reachable or
+       serving an unexpected version. -->
+  <script src="./vendor/react.development.js"></script>
+  <script src="./vendor/react-dom.development.js"></script>
+  <script src="./vendor/babel.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 4rem auto; }
+    button { font-size: 1rem; padding: 0.5rem 1rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <app-store id="store"></app-store>
+
+  <div id="react-root"></div>
+
+  <script type="module" src="./store.js"></script>
+
+  <script type="text/babel">
+    // React 18's sanctioned pattern for consuming state it doesn't own — see
+    // demo/video/store.js for the cpx-store side. This page loads React,
+    // ReactDOM, and Babel Standalone with nothing else running, so its
+    // Network/Performance panel can be compared directly against
+    // 02a-cpx-only.html without either page's overhead contaminating the other.
+    const ReactApp = () => {
+      const count = React.useSyncExternalStore(
+        (onStoreChange) => {
+          const store = document.querySelector('app-store');
+          store.addEventListener('change', onStoreChange);
+          return () => store.removeEventListener('change', onStoreChange);
+        },
+        // Select a primitive, not store.state itself. store.state is a Proxy
+        // mutated in place, so returning it directly would be the exact same
+        // reference on every call — React's Object.is check would see no
+        // change and the component would never re-render.
+        () => document.querySelector('app-store').state.count,
+      );
+
+      return (
+        <div>
+          <p>React state: <strong>{count}</strong></p>
+          <button onClick={() => document.querySelector('app-store').state.count++}>
+            Increment from React
+          </button>
+        </div>
+      );
+    };
+
+    customElements.whenDefined('app-store').then(() => {
+      const root = ReactDOM.createRoot(document.getElementById('react-root'));
+      root.render(<ReactApp />);
+      console.log(`React interactive at ${performance.now().toFixed(1)}ms`);
+    });
+  </script>
+</body>
+</html>

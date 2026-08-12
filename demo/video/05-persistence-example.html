@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>cpx-store — persistence</title></head>
+<body>
+  <favorite-store id="store"></favorite-store>
+  <p>Favorite color: <strong id="color">none</strong></p>
+  <input id="color-input" placeholder="e.g. teal" />
+  <button id="save">Save</button>
+  <p><em>Reload this page, or open it in a second tab, to see the value persist and sync.</em></p>
+
+  <script type="module">
+    import { CPXStore } from '../../cpx-store.js';
+    import { persistencePlugin } from '../../plugins/persistence.js';
+
+    class FavoriteStore extends CPXStore {
+      constructor() {
+        super({ favoriteColor: 'none' }, persistencePlugin({ key: 'video-demo-favorite' }));
+      }
+    }
+    customElements.define('favorite-store', FavoriteStore);
+
+    await customElements.whenDefined('favorite-store');
+    const store = document.querySelector('#store');
+    const render = () => document.querySelector('#color').textContent = store.state.favoriteColor;
+    store.addEventListener('change', render);
+    render();
+
+    document.querySelector('#save').onclick = () => {
+      store.state.favoriteColor = document.querySelector('#color-input').value;
+    };
+  </script>
+</body>
+</html>

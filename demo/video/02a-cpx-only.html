@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>cpx-store only — performance baseline</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 4rem auto; }
+    button { font-size: 1rem; padding: 0.5rem 1rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <app-store id="store"></app-store>
+
+  <p>Count: <strong id="count">0</strong></p>
+  <button id="inc">Increment from cpx-store</button>
+
+  <script type="module" src="./store.js"></script>
+  <script type="module">
+    await customElements.whenDefined('app-store');
+    const store = document.querySelector('#store');
+
+    const render = () => document.querySelector('#count').textContent = store.state.count;
+    store.addEventListener('change', render);
+    render();
+
+    document.querySelector('#inc').onclick = () => store.state.count++;
+
+    // No React, no ReactDOM, no Babel loaded on this page at all — compare
+    // this page's Network/Performance panel against 02b-react-only.html.
+    console.log(`cpx-store interactive at ${performance.now().toFixed(1)}ms`);
+  </script>
+</body>
+</html>

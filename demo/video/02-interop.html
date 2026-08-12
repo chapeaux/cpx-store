@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>cpx-store + React — same store, two renderers</title>
+  <!-- Vendored locally in ./vendor/ — see 02b-react-only.html for why. -->
+  <script src="./vendor/react.development.js"></script>
+  <script src="./vendor/react-dom.development.js"></script>
+  <script src="./vendor/babel.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; display: flex; gap: 2rem; }
+    section { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; }
+    h2 { margin-top: 0; font-size: 1rem; text-transform: uppercase; color: #6366f1; }
+    button { font-size: 1rem; padding: 0.5rem 1rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <app-store id="store"></app-store>
+
+  <section>
+    <h2>cpx-store</h2>
+    <p>Count: <strong id="cpx-count">0</strong></p>
+    <button id="cpx-inc">Increment from cpx-store</button>
+  </section>
+
+  <section>
+    <h2>React</h2>
+    <div id="react-root"></div>
+  </section>
+
+  <script type="module" src="./store.js"></script>
+
+  <script type="module">
+    await customElements.whenDefined('app-store');
+    const store = document.querySelector('#store');
+    const render = () => document.querySelector('#cpx-count').textContent = store.state.count;
+    store.addEventListener('change', render);
+    render();
+    document.querySelector('#cpx-inc').onclick = () => store.state.count++;
+  </script>
+
+  <script type="text/babel">
+    // Same <app-store>, two independent renderers reacting to it. Click
+    // either button and watch both sides update — neither renderer knows
+    // the other exists. This is the "not coupled" claim made concrete;
+    // see 02a-cpx-only.html / 02b-react-only.html for the follow-up
+    // question of what each one costs, measured in isolation.
+    const ReactApp = () => {
+      const count = React.useSyncExternalStore(
+        (onStoreChange) => {
+          const store = document.querySelector('app-store');
+          store.addEventListener('change', onStoreChange);
+          return () => store.removeEventListener('change', onStoreChange);
+        },
+        () => document.querySelector('app-store').state.count,
+      );
+
+      return (
+        <div>
+          <p>React state: <strong>{count}</strong></p>
+          <button onClick={() => document.querySelector('app-store').state.count++}>
+            Increment from React
+          </button>
+        </div>
+      );
+    };
+
+    customElements.whenDefined('app-store').then(() => {
+      const root = ReactDOM.createRoot(document.getElementById('react-root'));
+      root.render(<ReactApp />);
+    });
+  </script>
+</body>
+</html>
